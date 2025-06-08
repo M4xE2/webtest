@@ -41,7 +41,7 @@ const fileFilter = (req, file, cb) => {
   ];
   cb(null, allowed.includes(file.mimetype));
 };
-const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 }, fileFilter });
+const upload = multer({ storage, limits: { fileSize: 50000 * 1024 * 1024 }, fileFilter });
 
 // Upload endpoint
 app.post('/upload', upload.single('file'), (req, res) => {
