@@ -1,3 +1,23 @@
+const adminPassword = '244466666'; // change this to something secret
+
+function basicAuth(req, res, next) {
+  const auth = req.headers.authorization;
+  if (!auth || !auth.startsWith('Basic ')) {
+    res.set('WWW-Authenticate', 'Basic realm="Admin Area"');
+    return res.status(401).send('Authentication required');
+  }
+
+  const decoded = Buffer.from(auth.split(' ')[1], 'base64').toString();
+  const [user, pass] = decoded.split(':');
+
+  if (user === 'admin' && pass === adminPassword) {
+    return next();
+  }
+
+  res.set('WWW-Authenticate', 'Basic realm="Admin Area"');
+  return res.status(401).send('Access denied');
+}
+
 const express = require('express');
 const uploadedFiles = {}; // filename -> timeout ID
 let connectedUsers = 0;
@@ -22,6 +42,11 @@ app.use('/uploads', express.static('uploads'));
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 
+app.get('/admin', basicAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
+
 // File upload config (10MB, only safe types)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, 'uploads/'),
@@ -44,10 +69,71 @@ const fileFilter = (req, file, cb) => {
 };
 const upload = multer({ storage, limits: { fileSize: 50000 * 1024 * 1024 }, fileFilter });
 
+let isChatLocked = false;
+let isUploadsLocked = false;
+
+app.post('/admin/chat-lock', basicAuth, (req, res) => {
+  let body = '';
+  req.on('data', chunk => (body += chunk));
+  req.on('end', () => {
+    const { locked } = JSON.parse(body);
+    isChatLocked = !!locked;
+    io.emit('chat-lock', isChatLocked);
+    res.sendStatus(200);
+  });
+});
+
+app.post('/admin/uploads-lock', basicAuth, (req, res) => {
+  let body = '';
+  req.on('data', chunk => (body += chunk));
+  req.on('end', () => {
+    const { locked } = JSON.parse(body);
+    isUploadsLocked = !!locked;
+    res.sendStatus(200);
+  });
+});
+
+app.delete('/admin/delete-file/:filename', basicAuth, (req, res) => {
+  const filename = req.params.filename;
+  const filePath = path.join(uploadDir, filename);
+  fs.unlink(filePath, (err) => {
+    if (err) return res.status(404).send('Not found');
+    if (uploadedFiles[filename]) {
+      clearTimeout(uploadedFiles[filename]);
+      delete uploadedFiles[filename];
+    }
+    res.sendStatus(200);
+  });
+});
+
+
 // Upload endpoint
 app.post('/upload', upload.single('file'), (req, res) => {
+  // 🚫 Check if uploads are locked
+  if (isUploadsLocked) {
+    return res.status(403).send('Uploads are locked by admin.');
+  }
+
+  // ✅ Your existing logic
+  if (req.file) {
+    const filePath = path.join(uploadDir, req.file.filename);
+
+    // 🕒 Start 30-minute delete timer
+    const timeout = setTimeout(() => {
+      fs.unlink(filePath, (err) => {
+        if (!err) {
+          console.log(`🗑️ Deleted expired file: ${req.file.filename}`);
+        }
+        delete uploadedFiles[req.file.filename];
+      });
+    }, 30 * 60 * 1000); // 30 minutes
+
+    uploadedFiles[req.file.filename] = timeout;
+  }
+
   res.redirect('/');
 });
+
 
 // List uploaded files
 app.get('/files', (req, res) => {
@@ -78,10 +164,11 @@ io.on('connection', (socket) => {
   });
 
   socket.on('chat message', (msg) => {
-    if (currentUsername) {
+    if (currentUsername && !isChatLocked) {
       io.emit('chat message', { name: currentUsername, text: msg });
     }
   });
+
 
   socket.on('disconnect', () => {
     connectedUsers--;
@@ -120,22 +207,3 @@ server.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
 
-app.post('/upload', upload.single('file'), (req, res) => {
-  if (req.file) {
-    const filePath = path.join(uploadDir, req.file.filename);
-
-    // Start 30-minute delete timer
-    const timeout = setTimeout(() => {
-      fs.unlink(filePath, (err) => {
-        if (!err) {
-          console.log(`🗑️ Deleted expired file: ${req.file.filename}`);
-        }
-        delete uploadedFiles[req.file.filename];
-      });
-    }, 30 * 60 * 1000); // 30 minutes
-
-    uploadedFiles[req.file.filename] = timeout;
-  }
-
-  res.status(200).send('OK');
-});

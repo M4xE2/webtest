@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    button { margin: 5px; }
+  </style>
+</head>
+<body>
+  <h2>Admin Panel</h2>
+  <button onclick="toggleChat()">Toggle Chat</button>
+  <button onclick="toggleUploads()">Toggle Uploads</button>
+
+  <h3>Shared Files:</h3>
+  <ul id="file-list"></ul>
+
+  <script>
+    let chatLocked = false;
+    let uploadsLocked = false;
+
+    function toggleChat() {
+      chatLocked = !chatLocked;
+      fetch('/admin/chat-lock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locked: chatLocked })
+      });
+    }
+
+    function toggleUploads() {
+      uploadsLocked = !uploadsLocked;
+      fetch('/admin/uploads-lock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locked: uploadsLocked })
+      });
+    }
+
+    function loadFiles() {
+      fetch('/files')
+        .then(res => res.json())
+        .then(files => {
+          const list = document.getElementById('file-list');
+          list.innerHTML = '';
+          files.forEach(file => {
+            const li = document.createElement('li');
+            li.textContent = file + ' ';
+            const del = document.createElement('button');
+            del.textContent = '🗑️ Delete';
+            del.onclick = () => {
+              fetch(`/admin/delete-file/${file}`, { method: 'DELETE' }).then(loadFiles);
+            };
+            li.appendChild(del);
+            list.appendChild(li);
+          });
+        });
+    }
+
+    window.onload = loadFiles;
+  </script>
+</body>
+</html>

@@ -121,28 +121,38 @@
   loadFiles();
 </script>
 
-
 <h3>Shared Files:</h3>
-<ul id="fileList"></ul>
-
+<button id="refresh-files">Refresh</button>
+<ul id="file-list"></ul>
 <script>
-  // Load file list
+  function loadFiles() {
   fetch('/files')
     .then(res => res.json())
     .then(files => {
-      const list = document.getElementById('fileList');
+      const fileList = document.getElementById('file-list');
+      fileList.innerHTML = ''; // Clear current list
       files.forEach(file => {
         const li = document.createElement('li');
-        const a = document.createElement('a');
-        a.href = `/uploads/${file}`;
-        a.textContent = file;
-        a.target = '_blank';
-        li.appendChild(a);
-        list.appendChild(li);
+        const link = document.createElement('a');
+        link.href = `/uploads/${file}`;
+        link.textContent = file;
+        link.target = '_blank';
+        li.appendChild(link);
+        fileList.appendChild(li);
       });
+    })
+    .catch(() => {
+      alert('⚠️ Failed to load files');
     });
-</script>
+}
 
+// Load files on page load
+window.addEventListener('load', loadFiles);
+
+// Refresh button
+document.getElementById('refresh-files').addEventListener('click', loadFiles);
+
+</script>
 
 </body>
 </html>
