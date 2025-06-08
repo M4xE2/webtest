@@ -1,11 +1,77 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+  <title>Chat App</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    #messages { list-style: none; padding: 0; }
+    #messages li { padding: 5px 10px; }
+    #form { display: flex; }
+    #input { flex: 1; padding: 10px; }
+  </style>
 </head>
 <body>
-    
+  <ul id="messages"></ul>
+  <form id="form" action="">
+    <input id="input" autocomplete="off" /><button>Send</button>
+  </form>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+  let username = '';
+
+  // Prompt for username until it's accepted
+  function promptUsername() {
+    username = prompt("Enter your username:");
+    if (username) {
+      socket.emit('set username', username);
+    } else {
+      promptUsername(); // force input
+    }
+  }
+
+  promptUsername();
+
+  const form = document.getElementById('form');
+  const input = document.getElementById('input');
+  const messages = document.getElementById('messages');
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (input.value) {
+      socket.emit('chat message', input.value);
+      input.value = '';
+    }
+  });
+
+  socket.on('username exists', () => {
+    alert('This username is already taken. Try another one.');
+    promptUsername(); // try again
+  });
+
+  socket.on('user joined', (name) => {
+    const item = document.createElement('li');
+    item.textContent = `${name} joined the chat`;
+    item.style.color = 'green';
+    messages.appendChild(item);
+  });
+
+  socket.on('user left', (name) => {
+    const item = document.createElement('li');
+    item.textContent = `${name} left the chat`;
+    item.style.color = 'red';
+    messages.appendChild(item);
+  });
+
+  socket.on('chat message', (msg) => {
+    const item = document.createElement('li');
+    item.textContent = `${msg.name}: ${msg.text}`;
+    messages.appendChild(item);
+    window.scrollTo(0, document.body.scrollHeight);
+  });
+</script>
+
 </body>
 </html>
