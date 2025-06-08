@@ -37,7 +37,8 @@ const fileFilter = (req, file, cb) => {
     'application/pdf',
     'text/plain',
     'audio/mpeg',    // .mp3
-    'video/mp4'      // .mp4
+    'video/mp4',     // .mp4
+    'application/zip'
   ];
   cb(null, allowed.includes(file.mimetype));
 };
