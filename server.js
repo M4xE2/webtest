@@ -108,17 +108,15 @@ app.delete('/admin/delete-file/:filename', basicAuth, (req, res) => {
 
 
 // Upload endpoint
-app.post('/upload', upload.single('file'), (req, res) => {
-  // 🚫 Check if uploads are locked
+app.post('/upload', (req, res, next) => {
   if (isUploadsLocked) {
     return res.status(403).send('Uploads are locked by admin.');
   }
-
-  // ✅ Your existing logic
+  next();
+}, upload.single('file'), (req, res) => {
   if (req.file) {
     const filePath = path.join(uploadDir, req.file.filename);
 
-    // 🕒 Start 30-minute delete timer
     const timeout = setTimeout(() => {
       fs.unlink(filePath, (err) => {
         if (!err) {
@@ -126,7 +124,7 @@ app.post('/upload', upload.single('file'), (req, res) => {
         }
         delete uploadedFiles[req.file.filename];
       });
-    }, 30 * 60 * 1000); // 30 minutes
+    }, 30 * 60 * 1000); // 30 min
 
     uploadedFiles[req.file.filename] = timeout;
   }
