@@ -17,7 +17,6 @@
   </form>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/socket.io/socket.io.js"></script>
 <script>
   const socket = io();
   let username = '';
@@ -72,6 +71,78 @@
     window.scrollTo(0, document.body.scrollHeight);
   });
 </script>
+
+<h2>Upload a File</h2>
+<form id="uploadForm">
+  <input type="file" name="file" required>
+  <button type="submit">Upload</button>
+</form>
+
+<script>
+  const uploadForm = document.getElementById('uploadForm');
+
+  uploadForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const formData = new FormData(uploadForm);
+    const res = await fetch('/upload', {
+      method: 'POST',
+      body: formData
+    });
+
+    if (res.ok) {
+      alert('Upload successful!');
+      uploadForm.reset();
+      loadFiles(); // reload file list
+    } else {
+      alert('Upload failed!');
+    }
+  });
+
+  function loadFiles() {
+    fetch('/files')
+      .then(res => res.json())
+      .then(files => {
+        const list = document.getElementById('fileList');
+        list.innerHTML = '';
+        files.forEach(file => {
+          const li = document.createElement('li');
+          const a = document.createElement('a');
+          a.href = `/uploads/${file}`;
+          a.textContent = file;
+          a.target = '_blank';
+          li.appendChild(a);
+          list.appendChild(li);
+        });
+      });
+  }
+
+  // Load files initially
+  loadFiles();
+</script>
+
+
+<h3>Shared Files:</h3>
+<ul id="fileList"></ul>
+
+<script>
+  // Load file list
+  fetch('/files')
+    .then(res => res.json())
+    .then(files => {
+      const list = document.getElementById('fileList');
+      files.forEach(file => {
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.href = `/uploads/${file}`;
+        a.textContent = file;
+        a.target = '_blank';
+        li.appendChild(a);
+        list.appendChild(li);
+      });
+    });
+</script>
+
 
 </body>
 </html>
